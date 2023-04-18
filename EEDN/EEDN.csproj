@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Fonts\Sauce Code Pro Nerd Font Complete Mono Windows Compatible.ttf" />
+    <None Remove="Shaders\line.glsl" />
+    <None Remove="Shaders\rect.glsl" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OpenTK" Version="4.7.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EEDN.TTF\EEDN.TTF.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Fonts\Sauce Code Pro Nerd Font Complete Mono Windows Compatible.ttf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Shaders\line.glsl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Shaders\rect.glsl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

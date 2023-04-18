@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.33516.290
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EEDN", "eedn\EEDN.csproj", "{2D6E8BD2-BF4A-45D7-BF4F-A051475C6CC8}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EEDN.TTF", "EEDN.TTF\EEDN.TTF.csproj", "{6CB1761A-8ECE-4B23-ABFC-CAE93958BA26}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2D6E8BD2-BF4A-45D7-BF4F-A051475C6CC8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2D6E8BD2-BF4A-45D7-BF4F-A051475C6CC8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2D6E8BD2-BF4A-45D7-BF4F-A051475C6CC8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2D6E8BD2-BF4A-45D7-BF4F-A051475C6CC8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6CB1761A-8ECE-4B23-ABFC-CAE93958BA26}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6CB1761A-8ECE-4B23-ABFC-CAE93958BA26}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6CB1761A-8ECE-4B23-ABFC-CAE93958BA26}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6CB1761A-8ECE-4B23-ABFC-CAE93958BA26}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {086C203F-9EBB-4214-BC47-BAFC3A0224A2}
+	EndGlobalSection
+EndGlobal
