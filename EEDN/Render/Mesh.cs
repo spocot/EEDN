@@ -58,7 +58,7 @@ namespace EEDN.Render
             GL.BindVertexArray(ab);
             GL.EnableVertexAttribArray(0);
             GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
-            GL.VertexAttribPointer(0, 2, VertexAttribPointerType.Float, false, 2 * 4, 0);
+            GL.VertexAttribPointer(0, 2, VertexAttribPointerType.Float, false, 8, 0);
 
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, ibo);
 
