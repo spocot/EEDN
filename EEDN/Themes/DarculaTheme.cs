@@ -8,6 +8,7 @@
             FgColor = (Color4Helper)0xffa9b7c6;
             CursorColor = (Color4Helper)0xffbbbbbb;
             GutterColor = (Color4Helper)0xff313335;
+            SelectionColor = (Color4Helper)0xff214283;
         }
     }
 }

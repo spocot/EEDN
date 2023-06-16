@@ -10,26 +10,44 @@ namespace EEDN
     public class EednEngine
     {
         public List<string> Affixes { get; set; } = new List<string>();
-        public TextBuffer Buffer { get; set; } = new TextBuffer();
+        public int CurrentFrameIdx { get; set; } = -1;
+        public List<Frame> Frames { get; set; } = new List<Frame>();
+        public Frame CurrentFrame
+        {
+            get => Frames[CurrentFrameIdx];
+        }
+        public TextBuffer CurrentBuffer
+        {
+            get => CurrentFrame.Buffer;
+        }
         public Dictionary<KeyActionState, MotionAction> MotionBindings { get; set; } = new Dictionary<KeyActionState, MotionAction>();
         public Dictionary<KeyActionState, CommandAction> CommandBindings { get; set; } = new Dictionary<KeyActionState, CommandAction>();
         public Dictionary<KeyActionState, StandaloneAction> StandaloneBindings { get; set; } = new Dictionary<KeyActionState, StandaloneAction>();
-        public EditorMode CurrentMode { get; set; } = EditorMode.Insert;
+        public EditorMode CurrentMode
+        {
+            get => CurrentFrame.CurrentMode;
+            set => CurrentFrame.CurrentMode = value;
+        }
         public Theme CurrentTheme { get; set; }
 
         private DrawBuffer _DrawBuffer;
         private Color4 _LineCursorColor;
         private Color4 _BlockCursorColor;
+        private Color4 _SelectionColor;
 
         public CommandAction? PendingCommand { get; set; } = null;
+        public TextSelection? CurrentSelection { get; set; } = null;
 
         public EednEngine(DrawBuffer drawBuffer, Theme theme)
         {
             _DrawBuffer = drawBuffer;
+            Frames.Add(new Frame(0, 0, _DrawBuffer.ScreenSize, new TextBuffer()));
+            CurrentFrameIdx = 0;
             CurrentTheme = theme;
 
             _LineCursorColor = new Color4(CurrentTheme.CursorColor.R, CurrentTheme.CursorColor.G, CurrentTheme.CursorColor.B, 1.0f);
             _BlockCursorColor = new Color4(CurrentTheme.CursorColor.R, CurrentTheme.CursorColor.G, CurrentTheme.CursorColor.B, 0.5f);
+            _SelectionColor = new Color4(CurrentTheme.SelectionColor.R, CurrentTheme.SelectionColor.G, CurrentTheme.SelectionColor.B, 0.5f);
 
             // ====================== Insert Mode ====================== 
             AddVanillaStandaloneBinding(Keys.Escape, EditorMode.Insert, (_) => { CurrentMode = EditorMode.Command; });
@@ -151,9 +169,22 @@ namespace EEDN
 
             // ====================== Command Mode ====================== 
             AddVanillaStandaloneBinding(Keys.I, EditorMode.Command, (_) => { CurrentMode = EditorMode.Insert; });
-            AddVanillaStandaloneBinding(Keys.A, EditorMode.Command, (tb) => { CurrentMode = EditorMode.Insert; tb.ColIdx += 1; });
+            AddVanillaStandaloneBinding(Keys.A, EditorMode.Command, (tb) =>
+            {
+                CurrentMode = EditorMode.Insert;
+                if (tb.ColIdx < tb.Lines[tb.LineIdx].Length)
+                    tb.ColIdx += 1;
+            });
             AddShiftStandaloneBinding(Keys.I, EditorMode.Command, (tb) => { CurrentMode = EditorMode.Insert; tb.ColIdx = 0; });
             AddShiftStandaloneBinding(Keys.A, EditorMode.Command, (tb) => { CurrentMode = EditorMode.Insert; tb.ColIdx = tb.Lines[tb.LineIdx].Length; });
+
+            AddVanillaStandaloneBinding(Keys.V, EditorMode.Command, (_) =>
+            {
+                CurrentMode = EditorMode.Visual;
+                CurrentSelection = new TextSelection(
+                    (CurrentBuffer.LineIdx, CurrentBuffer.ColIdx),
+                    (CurrentBuffer.LineIdx, CurrentBuffer.ColIdx));
+            });
 
             // Movement keys
             AddVanillaMotionBinding(Keys.H, EditorMode.Command, KeyActions.MoveLeft);
@@ -172,6 +203,21 @@ namespace EEDN
             AddControlStandaloneBinding(Keys.Minus, EditorMode.Command, KeyActions.DecreaseFontSize);
 
             AddVanillaCommandBinding(Keys.D, EditorMode.Command, KeyActions.DeleteSelection);
+
+            // ====================== Visual Mode ====================== 
+            AddVanillaStandaloneBinding(Keys.Escape, EditorMode.Visual, (_) =>
+            {
+                CurrentMode = EditorMode.Command;
+                CurrentSelection = null;
+            });
+
+            // Movement keys
+            AddVanillaMotionBinding(Keys.H, EditorMode.Visual, (tb) => MoveAndSelect(KeyActions.MoveLeft(tb)));
+            AddVanillaMotionBinding(Keys.L, EditorMode.Visual, (tb) => MoveAndSelect(KeyActions.MoveRight(tb)));
+            AddVanillaMotionBinding(Keys.K, EditorMode.Visual, (tb) => MoveAndSelect(KeyActions.MoveUp(tb)));
+            AddVanillaMotionBinding(Keys.J, EditorMode.Visual, (tb) => MoveAndSelect(KeyActions.MoveDown(tb)));
+
+            AddVanillaCommandBinding(Keys.D, EditorMode.Visual, KeyActions.DeleteSelection);
         }
 
         public void ProcessKey(KeyboardKeyEventArgs e)
@@ -189,7 +235,7 @@ namespace EEDN
             if (keyHasStandalone && standaloneAction is not null)
             {
                 PendingCommand = null;
-                standaloneAction(Buffer);
+                standaloneAction(CurrentBuffer);
                 return;
             }
 
@@ -197,6 +243,17 @@ namespace EEDN
             bool keyHasCommand = CommandBindings.TryGetValue(keyActionState, out CommandAction? commandAction);
             if (keyHasCommand && commandAction is not null)
             {
+                if (CurrentMode == EditorMode.Visual)
+                {
+                    if (CurrentSelection is null)
+                        throw new Exception("Should be unreachable...");
+
+                    commandAction(CurrentBuffer, CurrentSelection);
+                    CurrentMode = EditorMode.Command;
+                    CurrentSelection = null;
+                    return;
+                }
+
                 // If no pending or pending is different from incoming command - set incoming as pending.
                 if (PendingCommand is null || PendingCommand != commandAction)
                 {
@@ -205,11 +262,9 @@ namespace EEDN
                 }
 
                 // If pending is the same as incoming - process command on current line.
-                commandAction(Buffer, new TextSelection(
-                    (Buffer.LineIdx, 0), (Buffer.LineIdx, Buffer.Lines[Buffer.LineIdx].Length - 1))
-                {
-                    IsFullBlock = true
-                });
+                commandAction(CurrentBuffer, new TextSelection(
+                    (CurrentBuffer.LineIdx, 0),
+                    (CurrentBuffer.LineIdx, CurrentBuffer.Lines[CurrentBuffer.LineIdx].Length - 1)));
 
                 PendingCommand = null;
                 return;
@@ -218,19 +273,19 @@ namespace EEDN
             bool keyHasMotion = MotionBindings.TryGetValue(keyActionState, out MotionAction? motionAction);
             if (keyHasMotion && motionAction is not null)
             {
-                TextLocation endLoc = motionAction(Buffer);
+                TextLocation endLoc = motionAction(CurrentBuffer);
                 if (PendingCommand is not null)
                 {
                     TextSelection selection = new TextSelection(
-                        new TextLocation(Buffer.LineIdx, Buffer.ColIdx),
+                        new TextLocation(CurrentBuffer.LineIdx, CurrentBuffer.ColIdx),
                         endLoc);
-                    PendingCommand(Buffer, selection);
+                    PendingCommand(CurrentBuffer, selection);
                     PendingCommand = null;
                 }
                 else
                 {
-                    Buffer.LineIdx = endLoc.LineIdx;
-                    Buffer.ColIdx = endLoc.ColIdx;
+                    CurrentBuffer.LineIdx = endLoc.LineIdx;
+                    CurrentBuffer.ColIdx = endLoc.ColIdx;
                 }
                 return;
             }
@@ -241,17 +296,22 @@ namespace EEDN
             var x = 0;
             var y = 0;
 
-            for (var i = 0; i < Buffer.Lines.Count; i++)
+            foreach (Frame frame in Frames)
+            {
+
+            }
+
+            for (var i = 0; i < CurrentBuffer.Lines.Count; i++)
             {
                 // Draw buffer text
-                var line = Buffer.Lines[i];
-                _DrawBuffer.DrawString(CurrentTheme.FgColor, line, Buffer.FontSize, new Point(x, y));
-                y += Buffer.FontSize + 8;
+                var line = CurrentBuffer.Lines[i];
+                _DrawBuffer.DrawString(CurrentTheme.FgColor, line, CurrentBuffer.FontSize, new Point(x, y));
+                y += CurrentBuffer.FontSize + 8;
 
                 // Draw cursor
-                if (i == Buffer.LineIdx && DateTime.Now.Millisecond >= 500)
+                if (i == CurrentBuffer.LineIdx && DateTime.Now.Millisecond >= 500)
                 {
-                    var size = _DrawBuffer.MeasureString(Buffer.ColIdx != line.Length ? line.Remove(Buffer.ColIdx) : line, Buffer.FontSize);
+                    var size = _DrawBuffer.MeasureString(CurrentBuffer.ColIdx != line.Length ? line.Remove(CurrentBuffer.ColIdx) : line, CurrentBuffer.FontSize);
                     _DrawBuffer.DrawRect(
                         CurrentMode switch
                         {
@@ -259,14 +319,50 @@ namespace EEDN
                             _ => _BlockCursorColor
                         },
                         new Rect(
-                            new Point(x + size.Width, y - Buffer.FontSize - 2),
+                            new Point(x + size.Width, y - CurrentBuffer.FontSize - 2),
                             new Size((CurrentMode switch
                             {
                                 EditorMode.Insert => 2,
-                                _ => Buffer.FontSize - 4
-                            }), Buffer.FontSize)));
+                                _ => CurrentBuffer.FontSize - 4
+                            }), CurrentBuffer.FontSize)));
                 }
             }
+
+            // Highlight current selection
+            if (CurrentSelection is not null)
+            {
+                for (int i = CurrentSelection.StartLoc.LineIdx; i <= CurrentSelection.EndLoc.LineIdx; ++i)
+                {
+                    float startX, endX;
+
+                    startX = i != CurrentSelection.StartLoc.LineIdx
+                        ? 0
+                        : _DrawBuffer.MeasureString(CurrentBuffer.Lines[i].Remove(CurrentSelection.StartLoc.ColIdx), CurrentBuffer.FontSize).Width;
+                    endX = i != CurrentSelection.EndLoc.LineIdx
+                        ? _DrawBuffer.MeasureString(CurrentBuffer.Lines[i], CurrentBuffer.FontSize).Width
+                        : _DrawBuffer.MeasureString(CurrentBuffer.Lines[i].Remove(CurrentSelection.EndLoc.ColIdx), CurrentBuffer.FontSize).Width;
+
+                    float dX = x + startX;
+                    float dY = (i * (CurrentBuffer.FontSize + 8)) + 6;
+
+                    _DrawBuffer.DrawRect(
+                        _SelectionColor,
+                        new Rect(
+                            new Point(dX, dY),
+                            new Size(endX + CurrentBuffer.FontSize - startX, CurrentBuffer.FontSize)));
+                }
+            }
+
+            // Draw current mode indicator
+            _DrawBuffer.DrawString(CurrentTheme.CursorColor, CurrentMode.ToString(), 16, new Point(0, _DrawBuffer.ScreenSize.Height - 20));
+        }
+
+        public TextLocation MoveAndSelect(TextLocation loc)
+        {
+            if (CurrentSelection is not null)
+                CurrentSelection = new TextSelection(CurrentSelection.StartLoc, loc);
+
+            return loc;
         }
 
         public void AddVanillaMotionBinding(Keys key, EditorMode mode, MotionAction action)

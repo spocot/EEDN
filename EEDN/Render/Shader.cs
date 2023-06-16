@@ -27,8 +27,8 @@ namespace EEDN.Render
 
             GL.BindAttribLocation(program, 0, "position");
 
-            AddVertexShader("#version 400\n #define VERTEX" + raw);
-            AddFragmentShader("#version 400\n #define FRAGMENT" + raw);
+            AddVertexShader("#version 400\n #define VERTEX\n" + raw);
+            AddFragmentShader("#version 400\n #define FRAGMENT\n" + raw);
 
             CompileShader();
         }

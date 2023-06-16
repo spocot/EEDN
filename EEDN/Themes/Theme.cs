@@ -8,5 +8,6 @@ namespace EEDN.Themes
         public Color4 FgColor { get; init; }
         public Color4 CursorColor { get; init; }
         public Color4 GutterColor { get; init; }
+        public Color4 SelectionColor { get; init; }
     }
 }

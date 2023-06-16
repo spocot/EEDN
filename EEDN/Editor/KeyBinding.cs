@@ -3,53 +3,10 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 
 namespace EEDN.Editor
 {
-    public enum EditorMode
-    {
-        Command,
-        Insert,
-        Visual
-    }
-
-    public record TextSelection
-    {
-        public TextLocation StartLoc { get; init; }
-        public TextLocation EndLoc { get; init; }
-        public bool IsFullBlock { get; init; } = false;
-
-        public TextSelection(TextLocation startLoc, TextLocation endLoc)
-            => (StartLoc, EndLoc) = (startLoc, endLoc);
-
-        public static implicit operator TextSelection((TextLocation, TextLocation) locTuple)
-            => new TextSelection(locTuple.Item1, locTuple.Item2);
-    }
-
-    public struct TextLocation
-    {
-        public int LineIdx { get; set; }
-        public int ColIdx { get; set; }
-
-        public TextLocation(int lineIdx, int colIdx)
-            => (LineIdx, ColIdx) = (lineIdx, colIdx);
-
-        public static implicit operator TextLocation((int, int) idxTuple)
-            => new TextLocation(idxTuple.Item1, idxTuple.Item2);
-    }
 
     public delegate TextLocation MotionAction(TextBuffer tb);
     public delegate void CommandAction(TextBuffer tb, TextSelection targetText);
     public delegate void StandaloneAction(TextBuffer tb);
-
-    public record KeyActionState
-    {
-        public bool IsShiftActive { get; init; } = false;
-        public bool IsAltActive { get; init; } = false;
-        public bool IsCommandActive { get; init; } = false;
-        public bool IsControlActive { get; init; } = false;
-        public EditorMode Mode { get; init; }
-        public Keys Key { get; init; }
-
-        public KeyActionState(Keys key, EditorMode mode) => (Key, Mode) = (key, mode);
-    }
 
     public static class KeyActions
     {
@@ -197,29 +154,44 @@ namespace EEDN.Editor
 
         public static void DeleteSelection(TextBuffer tb, TextSelection selection)
         {
-            if (selection.IsFullBlock)
-            {
-                // If only one line in buffer, then full block delete should empty it, but not remove it.
-                if (tb.Lines.Count <= 1)
-                {
-                    tb.Lines[0] = "";
-                    tb.ColIdx = 0;
-                    return;
-                }
+            int startLineIdx = selection.StartLoc.LineIdx;
+            int endLineIdx = selection.EndLoc.LineIdx;
 
-                tb.Lines.RemoveRange(selection.StartLoc.LineIdx, selection.EndLoc.LineIdx - selection.StartLoc.LineIdx + 1);
-                if (tb.LineIdx >= tb.Lines.Count)
-                    tb.LineIdx = tb.Lines.Count - 1;
-                if (tb.ColIdx > tb.Lines[tb.LineIdx].Length)
-                    GoToLocation(tb, KeyActions.GoToEnd(tb));
+            int startX = selection.StartLoc.ColIdx;
+            int endX = selection.EndLoc.ColIdx;
+
+            // Set cursor to where selection started
+            tb.LineIdx = selection.StartLoc.LineIdx;
+            tb.ColIdx = selection.StartLoc.ColIdx;
+
+            // Delete the selection in the only selected line and return.
+            if (startLineIdx == endLineIdx)
+            {
+                int count = endX - startX;
+                if (endX < tb.Lines[startLineIdx].Length)
+                    count += 1;
+
+                tb.Lines[startLineIdx] = tb.Lines[startLineIdx].Remove(startX, count);
                 return;
             }
 
-            if (selection.StartLoc.LineIdx == selection.EndLoc.LineIdx)
+            // If more than one line in the selection set start line to be
+            // startLine until selection start + endLine after selection end.
+            tb.Lines[startLineIdx] = tb.Lines[startLineIdx].Remove(startX);
+            if (endX < tb.Lines[endLineIdx].Length)
             {
-                tb.Lines[selection.StartLoc.LineIdx] = tb.Lines[selection.StartLoc.LineIdx]
-                    .Remove(selection.StartLoc.ColIdx, selection.EndLoc.ColIdx - selection.StartLoc.ColIdx);
+                if (endX < tb.Lines[endLineIdx].Length - 1)
+                {
+                    tb.Lines[startLineIdx] += tb.Lines[endLineIdx].Substring(endX + 1);
+                } else if (endLineIdx < tb.Lines.Count)
+                {
+                    tb.Lines[startLineIdx] += tb.Lines[endLineIdx + 1];
+                    tb.Lines.RemoveAt(endLineIdx + 1);
+                }
             }
+
+            // Remove every selected line after our start line we've modified.
+            tb.Lines.RemoveRange(startLineIdx + 1, endLineIdx - startLineIdx);
         }
     }
 }
