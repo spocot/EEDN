@@ -15,6 +15,7 @@ namespace EEDN.Editor
         public Size FrameSize { get; set; }
         public TextBuffer Buffer { get; set; }
         public EditorMode CurrentMode { get; set; } = EditorMode.Insert;
+        public TextSelection? CurrentSelection { get; set; } = null;
 
         public Frame(int x, int y, Size size, TextBuffer textBuffer)
             => (X, Y, FrameSize, Buffer) = (x, y, size, textBuffer);

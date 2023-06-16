@@ -36,7 +36,11 @@ namespace EEDN
         private Color4 _SelectionColor;
 
         public CommandAction? PendingCommand { get; set; } = null;
-        public TextSelection? CurrentSelection { get; set; } = null;
+        public TextSelection? CurrentSelection
+        {
+            get => CurrentFrame.CurrentSelection;
+            set => CurrentFrame.CurrentSelection = value;
+        }
 
         public EednEngine(DrawBuffer drawBuffer, Theme theme)
         {
@@ -293,68 +297,67 @@ namespace EEDN
 
         public void Draw()
         {
-            var x = 0;
-            var y = 0;
-
             foreach (Frame frame in Frames)
             {
+                float x = frame.X;
+                float y = frame.Y;
 
-            }
-
-            for (var i = 0; i < CurrentBuffer.Lines.Count; i++)
-            {
-                // Draw buffer text
-                var line = CurrentBuffer.Lines[i];
-                _DrawBuffer.DrawString(CurrentTheme.FgColor, line, CurrentBuffer.FontSize, new Point(x, y));
-                y += CurrentBuffer.FontSize + 8;
-
-                // Draw cursor
-                if (i == CurrentBuffer.LineIdx && DateTime.Now.Millisecond >= 500)
+                TextBuffer tBuffer = frame.Buffer;
+                for (var i = 0; i < tBuffer.Lines.Count; i++)
                 {
-                    var size = _DrawBuffer.MeasureString(CurrentBuffer.ColIdx != line.Length ? line.Remove(CurrentBuffer.ColIdx) : line, CurrentBuffer.FontSize);
-                    _DrawBuffer.DrawRect(
-                        CurrentMode switch
-                        {
-                            EditorMode.Insert => _LineCursorColor,
-                            _ => _BlockCursorColor
-                        },
-                        new Rect(
-                            new Point(x + size.Width, y - CurrentBuffer.FontSize - 2),
-                            new Size((CurrentMode switch
+                    // Draw buffer text
+                    var line = tBuffer.Lines[i];
+                    _DrawBuffer.DrawString(CurrentTheme.FgColor, line, tBuffer.FontSize, (x, y));
+                    y += tBuffer.FontSize + 8;
+
+                    // Draw cursor
+                    if (i == tBuffer.LineIdx && DateTime.Now.Millisecond >= 500)
+                    {
+                        var size = _DrawBuffer.MeasureString(tBuffer.ColIdx != line.Length ? line.Remove(tBuffer.ColIdx) : line, tBuffer.FontSize);
+                        _DrawBuffer.DrawRect(
+                            CurrentMode switch
                             {
-                                EditorMode.Insert => 2,
-                                _ => CurrentBuffer.FontSize - 4
-                            }), CurrentBuffer.FontSize)));
+                                EditorMode.Insert => _LineCursorColor,
+                                _ => _BlockCursorColor
+                            },
+                            new Rect(
+                                new Point(x + size.Width, y - tBuffer.FontSize - 2),
+                                new Size((CurrentMode switch
+                                {
+                                    EditorMode.Insert => 2,
+                                    _ => tBuffer.FontSize - 4
+                                }), tBuffer.FontSize)));
+                    }
                 }
-            }
 
-            // Highlight current selection
-            if (CurrentSelection is not null)
-            {
-                for (int i = CurrentSelection.StartLoc.LineIdx; i <= CurrentSelection.EndLoc.LineIdx; ++i)
+                // Highlight current selection
+                if (CurrentSelection is not null)
                 {
-                    float startX, endX;
+                    for (int i = CurrentSelection.StartLoc.LineIdx; i <= CurrentSelection.EndLoc.LineIdx; ++i)
+                    {
+                        float startX, endX;
 
-                    startX = i != CurrentSelection.StartLoc.LineIdx
-                        ? 0
-                        : _DrawBuffer.MeasureString(CurrentBuffer.Lines[i].Remove(CurrentSelection.StartLoc.ColIdx), CurrentBuffer.FontSize).Width;
-                    endX = i != CurrentSelection.EndLoc.LineIdx
-                        ? _DrawBuffer.MeasureString(CurrentBuffer.Lines[i], CurrentBuffer.FontSize).Width
-                        : _DrawBuffer.MeasureString(CurrentBuffer.Lines[i].Remove(CurrentSelection.EndLoc.ColIdx), CurrentBuffer.FontSize).Width;
+                        startX = i != CurrentSelection.StartLoc.LineIdx
+                            ? 0
+                            : _DrawBuffer.MeasureString(tBuffer.Lines[i].Remove(CurrentSelection.StartLoc.ColIdx), tBuffer.FontSize).Width;
+                        endX = i != CurrentSelection.EndLoc.LineIdx
+                            ? _DrawBuffer.MeasureString(tBuffer.Lines[i], tBuffer.FontSize).Width
+                            : _DrawBuffer.MeasureString(tBuffer.Lines[i].Remove(CurrentSelection.EndLoc.ColIdx), tBuffer.FontSize).Width;
 
-                    float dX = x + startX;
-                    float dY = (i * (CurrentBuffer.FontSize + 8)) + 6;
+                        float dX = x + startX;
+                        float dY = (i * (tBuffer.FontSize + 8)) + 6;
 
-                    _DrawBuffer.DrawRect(
-                        _SelectionColor,
-                        new Rect(
-                            new Point(dX, dY),
-                            new Size(endX + CurrentBuffer.FontSize - startX, CurrentBuffer.FontSize)));
+                        _DrawBuffer.DrawRect(
+                            _SelectionColor,
+                            new Rect(
+                                new Point(dX, dY),
+                                new Size(endX + tBuffer.FontSize - startX, tBuffer.FontSize)));
+                    }
                 }
-            }
 
-            // Draw current mode indicator
-            _DrawBuffer.DrawString(CurrentTheme.CursorColor, CurrentMode.ToString(), 16, new Point(0, _DrawBuffer.ScreenSize.Height - 20));
+                // Draw current mode indicator
+                _DrawBuffer.DrawString(CurrentTheme.CursorColor, CurrentMode.ToString(), 16, new Point(0, _DrawBuffer.ScreenSize.Height - 20));
+            }
         }
 
         public TextLocation MoveAndSelect(TextLocation loc)
