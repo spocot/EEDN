@@ -5,6 +5,9 @@ namespace EEDN.Render
 {
     public class DrawBuffer
     {
+        public const float LINE_HEIGHT = 1.0f;
+        public const int SPACES_IN_TAB = 4;
+
         public Size ScreenSize;
 
         private Shader _lineShader;
@@ -98,59 +101,58 @@ namespace EEDN.Render
             return new Size(xOff, yOff);
         }
 
-        public void DrawString(Color4 clr, string s, float size, Point p)
+        public void DrawString(Color4 color, string s, float size, Point p)
         {
-            var lineHeight = 1.0f;
-            var spacesInTab = 4;
-
-            var xOff = 0f;
-            var yOff = 0f;
+            Point currOffset = p;
 
             foreach (var c in s)
             {
-                var gl = _ttf.Glyfs[(byte)c];
-                var mesh = _GlyfCache[gl];
+                currOffset = DrawChar(color, c, size, currOffset);
+            }
+        }
 
-                // Need to scale down
-                var maxWidth = _ttf.Header.Xmax + 0.0000000001f;
-                var maxHeight = _ttf.Header.Ymax + 0.0000000001f;
+        public Point DrawChar(Color4 color, char c, float size, Point p)
+        {
+            Point newOffset = new Point(p.X, p.Y);
 
-                if (char.IsWhiteSpace(c))
+            var gl = _ttf.Glyfs[(byte)c];
+            var mesh = _GlyfCache[gl];
+
+            // Need to scale down
+            var maxWidth = _ttf.Header.Xmax + 0.0000000001f;
+            var maxHeight = _ttf.Header.Ymax + 0.0000000001f;
+
+            if (char.IsWhiteSpace(c))
+            {
+                if (c == '\n')
                 {
-                    if (c == '\n')
-                    {
-                        yOff += (size - (size * (_ttf.HorizontalHeaderTable.lineGap / maxHeight)) * lineHeight);
-                        xOff = 0;
-                    }
-                    else if (c == '\t')
-                    {
-                        xOff += size * spacesInTab;
-                    }
-                    else
-                    {
-                        xOff += size;
-                    }
-
-                    continue;
+                    return new Point(0, p.Y + (size - (size * (_ttf.HorizontalHeaderTable.lineGap / maxHeight)) * LINE_HEIGHT));
+                }
+                else if (c == '\t')
+                {
+                    return new Point(p.X + (size * SPACES_IN_TAB), p.Y);
                 }
 
-                var scaleFactorX = 1f / maxWidth;
-                var scaleFactorY = 1f / maxHeight;
-
-                var scaleX = size * scaleFactorX;
-                var scaleY = size * scaleFactorY;
-
-                var trans = new Matrix4f().InitIdentity().InitTranslation(xOff + p.X, yOff + p.Y + (size), 0);
-                var scale = new Matrix4f().InitIdentity().InitScale(scaleX, -scaleY, 0);
-
-                _rectShader.Apply();
-                _rectShader.SetUniform("mvp", _orthMat * trans * scale);
-                _rectShader.SetUniform("uColor", clr);
-
-                xOff += size * (_ttf.longHorMetrics[0].advanceWidth / maxWidth);
-
-                mesh.Draw();
+                // Render as a space
+                return new Point(p.X + size, p.Y);
             }
+
+            var scaleFactorX = 1f / maxWidth;
+            var scaleFactorY = 1f / maxHeight;
+
+            var scaleX = size * scaleFactorX;
+            var scaleY = size * scaleFactorY;
+
+            var trans = new Matrix4f().InitIdentity().InitTranslation(p.X, p.Y + size, 0);
+            var scale = new Matrix4f().InitIdentity().InitScale(scaleX, -scaleY, 0);
+
+            _rectShader.Apply();
+            _rectShader.SetUniform("mvp", _orthMat * trans * scale);
+            _rectShader.SetUniform("uColor", color);
+
+            mesh.Draw();
+
+            return new Point(p.X + (size * (_ttf.longHorMetrics[0].advanceWidth / maxWidth)), p.Y);
         }
     }
 }

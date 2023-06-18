@@ -21,7 +21,5 @@ namespace EEDN.Editor
             Lines[LineIdx] = Lines[LineIdx].Insert(ColIdx, c.ToString());
             ColIdx++;
         }
-
-        public void Insert(int i) => Insert((char)i);
     }
 }

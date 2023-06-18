@@ -13,6 +13,7 @@ namespace EEDN.Render
         private EednEngine _Engine;
         private DrawBuffer _DrawBuffer;
         private GlyphCache _GlyfCache = new GlyphCache();
+        private List<float> _fpsAvg = new List<float>();
 
         public EednWindow(GameWindowSettings gameWindowSettings, NativeWindowSettings nativeWindowSettings) : base(
             gameWindowSettings, nativeWindowSettings)
@@ -43,8 +44,6 @@ namespace EEDN.Render
             _Target.Dispose();
             _Target = new MultisampleRenderTarget(_DrawBuffer, e.Width, e.Height);
         }
-
-        private List<float> _fpsAvg = new List<float>();
 
         protected override void OnRenderFrame(FrameEventArgs args)
         {

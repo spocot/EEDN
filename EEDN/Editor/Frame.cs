@@ -10,14 +10,13 @@ namespace EEDN.Editor
 {
     public class Frame
     {
-        public int X {  get; set; }
-        public int Y {  get; set; }
-        public Size FrameSize { get; set; }
+        public Point StartPoint { get; set; }
+        public Point EndPoint { get; set; }
         public TextBuffer Buffer { get; set; }
         public EditorMode CurrentMode { get; set; } = EditorMode.Insert;
         public TextSelection? CurrentSelection { get; set; } = null;
 
-        public Frame(int x, int y, Size size, TextBuffer textBuffer)
-            => (X, Y, FrameSize, Buffer) = (x, y, size, textBuffer);
+        public Frame(Point startPoint, Point endPoint, TextBuffer textBuffer)
+            => (StartPoint, EndPoint, Buffer) = (startPoint, endPoint, textBuffer);
     }
 }
